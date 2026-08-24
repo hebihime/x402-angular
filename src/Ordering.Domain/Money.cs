@@ -32,8 +32,7 @@ public sealed class MoneyJsonConverter : JsonConverter<Money>
 {
     public override Money Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var raw = reader.GetString();
-        if (raw is null || !long.TryParse(raw, out var minorUnits))
+        if (reader.TokenType != JsonTokenType.String || !long.TryParse(reader.GetString(), out var minorUnits))
         {
             throw new JsonException("Money must be a string of integer minor units.");
         }
