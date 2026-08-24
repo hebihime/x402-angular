@@ -1,0 +1,30 @@
+<div class="shell">
+  <header class="topbar">
+    <h1>Kitchen dashboard</h1>
+    <div class="topbar__controls">
+      @if (store.restaurants().length > 0) {
+        <select class="topbar__select" (change)="onRestaurantChange($event)">
+          @for (restaurant of store.restaurants(); track restaurant.id) {
+            <option [value]="restaurant.id" [selected]="restaurant.id === store.restaurantId()">
+              {{ restaurant.name }} — {{ restaurant.city }}
+            </option>
+          }
+        </select>
+      }
+      <span class="topbar__live" [class.topbar__live--on]="store.live()">
+        {{ store.live() ? 'live' : 'offline' }}
+      </span>
+    </div>
+  </header>
+
+  @if (store.loadError(); as error) {
+    <p class="banner banner--error">{{ error }}</p>
+  }
+
+  <main class="content">
+    <kitchen-board />
+    <payment-strip />
+  </main>
+
+  <order-drawer />
+</div>
