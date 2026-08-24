@@ -169,17 +169,22 @@ are foundation code once written:
 ## Commands
 
 ```
-docker compose up -d               # postgres
+docker compose up -d               # postgres (host port 5441; 5432 is taken locally)
 dotnet ef database update -p src/Ordering.Infrastructure -s src/Ordering.Api
-dotnet run --project src/Ordering.Api    # API + SignalR + workers (one host)
-dotnet test                        # unit + integration + invariants
-cd frontend && npm start           # Angular dashboard
+dotnet run --project src/Ordering.Api    # API + SignalR + workers (one host), http://localhost:5240
+                                         # seeds restaurants/menus on first boot (SeedData, fixed GUIDs)
+dotnet test                        # unit + integration + invariants (Testcontainers)
+cd frontend && npm start           # Angular dashboard, http://localhost:4200 (proxies to 5240)
+./scripts/demo.sh                  # scripted demo: place → confirm → reject → refund with
+                                   # 2 injected gateway failures → recovered refund
 ```
 
 Keep these accurate as the repo grows; a stale command in this file is a bug.
-Add a seed mechanism (restaurants + menus with modifier groups) and a scripted
-demo (place → confirm → reject → refund with 2 injected gateway failures →
-recovered refund) and record their commands here when they exist.
+The .NET 8 SDK lives at `~/.dotnet` on this machine (pinned by global.json);
+prefix with `PATH="$HOME/.dotnet:$PATH"` if `dotnet` resolves to a newer SDK.
+Frontend requires Node ≥ 24.15 (`nvm use 24`). The frontend validates every API
+and SignalR payload with Zod at the boundary; keep schemas in
+`frontend/src/app/api/schemas.ts` in lockstep with the wire contract.
 
 ## Session discipline
 
