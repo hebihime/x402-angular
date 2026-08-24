@@ -2,10 +2,14 @@
 
 A portfolio re-implementation of a restaurant-ordering domain I first built as
 an event-driven TypeScript monolith (x402-food). This repo is the counterpart:
-the **same domain, rebuilt CQRS-first in .NET, where the architecture is the
-deliverable**. Customers place, confirm, and cancel orders; a restaurant
+the **same domain, rebuilt CQRS-first in .NET 10 LTS, where the architecture is
+the deliverable**. Customers place, confirm, and cancel orders; a restaurant
 dashboard accepts, prepares, and completes them; a refund lifecycle with retry
 and a terminal manual-intervention state handles rejections.
+
+**Stack:** .NET 10 LTS · ASP.NET Core minimal APIs · MediatR + FluentValidation ·
+EF Core / PostgreSQL write model · Dapper read projections · SignalR ·
+Angular 22 (standalone, signals). One host — no broker, no extra services.
 
 ## Why this domain genuinely earns CQRS
 
@@ -136,8 +140,9 @@ cd frontend && npm start           # dashboard on http://localhost:4200
                                    # gateway failures → recovered refund, live on the board
 ```
 
-Requires .NET 10 SDK, Docker, Node 24. No auth by design — `X-Customer-Id` is
-the only principal; that's out of scope on purpose.
+Requires the .NET 10 SDK (`global.json` pins 10.0.x), Docker, and Node 24.
+No auth by design — `X-Customer-Id` is the only principal; that's out of
+scope on purpose.
 
 ## What I'd change for production
 
