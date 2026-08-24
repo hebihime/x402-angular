@@ -17,7 +17,7 @@ stop and ask.
 
 ## Stack (pinned, do not substitute)
 
-- .NET 8 (LTS), nullable reference types enabled, warnings as errors
+- .NET 10 (LTS), nullable reference types enabled, warnings as errors
 - ASP.NET Core minimal APIs (thin: endpoints send MediatR requests, nothing else)
 - MediatR for commands/queries + pipeline behaviors; FluentValidation for input
 - Write model: EF Core + PostgreSQL (Npgsql), migrations checked in
@@ -180,8 +180,7 @@ cd frontend && npm start           # Angular dashboard, http://localhost:4200 (p
 ```
 
 Keep these accurate as the repo grows; a stale command in this file is a bug.
-The .NET 8 SDK lives at `~/.dotnet` on this machine (pinned by global.json);
-prefix with `PATH="$HOME/.dotnet:$PATH"` if `dotnet` resolves to a newer SDK.
+The .NET 10 SDK is the system one (homebrew, pinned by global.json).
 Frontend requires Node ≥ 24.15 (`nvm use 24`). The frontend validates every API
 and SignalR payload with Zod at the boundary; keep schemas in
 `frontend/src/app/api/schemas.ts` in lockstep with the wire contract.

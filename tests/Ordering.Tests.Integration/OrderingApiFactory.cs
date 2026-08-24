@@ -21,9 +21,7 @@ namespace Ordering.Tests.Integration;
 /// </summary>
 public sealed class OrderingApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
 {
-    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder()
-        .WithImage("postgres:16-alpine")
-        .Build();
+    private readonly PostgreSqlContainer _postgres = new PostgreSqlBuilder("postgres:16-alpine").Build();
 
     public FakeTimeProvider Clock { get; } = new(new DateTimeOffset(2026, 8, 24, 12, 0, 0, TimeSpan.Zero));
 

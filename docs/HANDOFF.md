@@ -24,3 +24,10 @@ Read this first each session; append at the end of each session.
 
 **Needs foundation change**
 - (none)
+
+## 2026-08-24 — session 1 addendum: `upgrade/dotnet-10` branch
+
+- `main` stays on .NET 8; the branch retargets everything to .NET 10 LTS (10.0.301, the system SDK — no `~/.dotnet` prefix needed on the branch).
+- Changes: global.json → 10.0.301; single TFM in `Directory.Build.props` (per-project TFMs deleted — they were overriding the props); EF Core/Npgsql/Design/NamingConventions/Extensions → 10.x; Mvc.Testing → 10.x; TimeProvider.Testing → 10.9; Testcontainers → 4.14 (new `PostgreSqlBuilder("image")` ctor); dotnet-ef local tool → 10.0.11; CLAUDE.md/README pins updated.
+- Verified: 0-warning build, 69/69 tests green (migrations authored under EF 8 apply cleanly), demo script end-to-end on .NET 10. Frontend untouched.
+- Open: merging to main means updating `docs/DESIGN.md`'s historical ".NET 8" pin or accepting it as historical record (CLAUDE.md is the live authority).

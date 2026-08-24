@@ -1,4 +1,4 @@
-# Ordering — CQRS restaurant ordering in .NET 8
+# Ordering — CQRS restaurant ordering in .NET 10
 
 A portfolio re-implementation of a restaurant-ordering domain I first built as
 an event-driven TypeScript monolith (x402-food). This repo is the counterpart:
@@ -136,7 +136,7 @@ cd frontend && npm start           # dashboard on http://localhost:4200
                                    # gateway failures → recovered refund, live on the board
 ```
 
-Requires .NET 8 SDK, Docker, Node 24. No auth by design — `X-Customer-Id` is
+Requires .NET 10 SDK, Docker, Node 24. No auth by design — `X-Customer-Id` is
 the only principal; that's out of scope on purpose.
 
 ## What I'd change for production
