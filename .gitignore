@@ -1,0 +1,10 @@
+bin/
+obj/
+*.user
+.vs/
+.idea/
+.DS_Store
+TestResults/
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
