@@ -9,3 +9,12 @@ frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 .gstack/
+
+# Agent session notes — local only
+/CLAUDE.md
+/Claude.md
+/docs/HANDOFF.md
+/docs/DECISIONS.md
+/docs/SUPERPROMPT-x402.md
+/docs/SUPERPROMPT.md
+
