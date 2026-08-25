@@ -144,6 +144,12 @@ Requires the .NET 10 SDK (`global.json` pins 10.0.x), Docker, and Node 24.
 No auth by design — `X-Customer-Id` is the only principal; that's out of
 scope on purpose.
 
+GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull
+request: `dotnet build` + `dotnet test` (Testcontainers Postgres; no
+docker-compose), and `npm ci` + `ng build` for the dashboard. It does not
+run `scripts/demo.sh` (needs a live API host) or `ng test` (no component
+specs).
+
 ## What I'd change for production
 
 Honest deltas between this demo and something I'd run for money:
