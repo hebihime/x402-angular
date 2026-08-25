@@ -15,6 +15,8 @@ public interface IOrderWriteRepository
 
     void Add(Order order);
 
+    Task<Order?> GetAsync(Guid orderId, CancellationToken cancellationToken);
+
     Task<Order?> GetForUpdateAsync(Guid orderId, CancellationToken cancellationToken);
 
     Task<Order?> FindByIdempotencyKeyAsync(string customerId, string idempotencyKey, CancellationToken cancellationToken);
@@ -42,4 +44,6 @@ public interface ITransactionManager
 public interface IUniqueViolationDetector
 {
     bool IsIdempotencyKeyViolation(Exception exception);
+
+    bool IsSettlementReplayViolation(Exception exception);
 }

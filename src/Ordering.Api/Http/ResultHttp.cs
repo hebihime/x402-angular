@@ -18,9 +18,15 @@ public static class ResultHttp
             ErrorKind.Validation => (StatusCodes.Status400BadRequest, "Invalid request"),
             ErrorKind.GuardrailViolation => (StatusCodes.Status422UnprocessableEntity, "Guardrail violation"),
             ErrorKind.PaymentFailed => (StatusCodes.Status402PaymentRequired, "Payment failed"),
+            ErrorKind.PaymentRequired => (StatusCodes.Status402PaymentRequired, "Payment required"),
             ErrorKind.Conflict => (StatusCodes.Status409Conflict, "Conflict"),
             _ => (StatusCodes.Status500InternalServerError, "Error"),
         };
+
+        if (result.Error.Kind == ErrorKind.PaymentRequired && result.Error.Details is not null)
+        {
+            return Results.Json(result.Error.Details, statusCode: StatusCodes.Status402PaymentRequired);
+        }
 
         return Results.Problem(title: title, detail: result.Error.Message, statusCode: status);
     }

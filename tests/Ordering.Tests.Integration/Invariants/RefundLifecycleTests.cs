@@ -8,7 +8,7 @@ using Ordering.Infrastructure.Workers;
 namespace Ordering.Tests.Integration.Invariants;
 
 /// <summary>
-/// Invariant 4: payment at confirm only; refunds are their own gateway
+/// Invariant 4: payment at confirm only (x402); refunds are their own
 /// lifecycle owned by the refund worker — retry with exponential backoff, and
 /// a terminal refund_failed + manual-intervention flag when retries exhaust.
 /// Test config: MaxAttempts=3, backoff base 2000ms.
@@ -19,6 +19,7 @@ public class RefundLifecycleTests(OrderingApiFactory factory)
     private readonly ApiDriver _api = new(factory);
 
     private SimulatedPaymentGateway Gateway => factory.Services.GetRequiredService<SimulatedPaymentGateway>();
+    private FakeFacilitator Facilitator => factory.Services.GetRequiredService<FakeFacilitator>();
     private RefundProcessor Refunds => factory.Services.GetRequiredService<RefundProcessor>();
 
     /// <summary>Settle refund_pending leftovers from other tests so injected failure counters hit only this test's order.</summary>
@@ -38,15 +39,15 @@ public class RefundLifecycleTests(OrderingApiFactory factory)
     }
 
     [Fact]
-    public async Task A_declined_charge_leaves_the_draft_unpaid_and_is_retryable()
+    public async Task A_declined_settlement_leaves_the_draft_unpaid_and_is_retryable()
     {
         var placed = await _api.PlacedAsync("refund-cust-1", "refund-key-1");
         var orderId = placed.GetProperty("orderId").GetGuid();
 
-        Gateway.InjectChargeFailures(1);
+        Facilitator.InjectSettleFailures(1);
         var declined = await _api.ConfirmAsync(orderId, "refund-cust-1");
         declined.StatusCode.Should().Be(HttpStatusCode.PaymentRequired);
-        (await _api.WriteStatusAsync(orderId)).Should().Be("draft", "a failed charge transitions nothing");
+        (await _api.WriteStatusAsync(orderId)).Should().Be("draft", "a failed settlement transitions nothing");
 
         (await ApiDriver.ReadJsonAsync(await _api.ConfirmAsync(orderId, "refund-cust-1")))
             .GetProperty("status").GetString().Should().Be("paid");

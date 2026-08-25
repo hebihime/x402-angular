@@ -48,4 +48,11 @@ public class MoneyTests
         var act = () => JsonSerializer.Deserialize<Money>(json);
         act.Should().Throw<JsonException>();
     }
+
+    [Fact]
+    public void Converts_cents_to_USDC_atomic_units_at_the_protocol_edge()
+    {
+        Usdc.ToAtomicAmount(new Money(1450)).Should().Be("14500000");
+        Usdc.ToAtomicAmount(Money.Zero).Should().Be("0");
+    }
 }

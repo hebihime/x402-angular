@@ -28,11 +28,27 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork>(sp => sp.GetRequiredService<OrderingDbContext>());
         services.AddScoped<IOrderWriteRepository, OrderWriteRepository>();
+        services.AddScoped<IPaymentRepository, PaymentRepository>();
         services.AddScoped<ITransactionManager, EfTransactionManager>();
         services.AddSingleton<IUniqueViolationDetector, NpgsqlUniqueViolationDetector>();
 
         services.AddSingleton<SimulatedPaymentGateway>();
         services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<SimulatedPaymentGateway>());
+
+        var useFakeFacilitator = configuration.GetValue("Ordering:X402:UseFake", true);
+        if (useFakeFacilitator)
+        {
+            services.AddSingleton<FakeFacilitator>();
+            services.AddSingleton<IFacilitator>(sp => sp.GetRequiredService<FakeFacilitator>());
+        }
+        else
+        {
+            var facilitatorUrl = configuration["Ordering:X402:FacilitatorUrl"] ?? "https://x402.org/facilitator";
+            services.AddHttpClient<IFacilitator, HttpX402Facilitator>(client =>
+            {
+                client.BaseAddress = new Uri(facilitatorUrl.TrimEnd('/') + "/");
+            });
+        }
 
         services.AddScoped<IRestaurantReadRepository, RestaurantReadRepository>();
         services.AddScoped<IOrderReadRepository, OrderReadRepository>();

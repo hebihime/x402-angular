@@ -28,6 +28,9 @@ public sealed class OrderingOptions
     [Required]
     public GatewayOptions Gateway { get; set; } = new();
 
+    [Required]
+    public X402Options X402 { get; set; } = new();
+
     public sealed class RefundOptions
     {
         [Range(1, 100)]
@@ -48,5 +51,32 @@ public sealed class OrderingOptions
 
         [Range(0, int.MaxValue)]
         public int FailNextRefunds { get; set; }
+    }
+
+    public sealed class X402Options
+    {
+        [Required]
+        public string PayToAddress { get; set; } = "";
+
+        [Required]
+        public string FacilitatorUrl { get; set; } = "https://x402.org/facilitator";
+
+        [Required]
+        public string Network { get; set; } = "base-sepolia";
+
+        [Required]
+        public string Asset { get; set; } = "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+
+        /// <summary>
+        /// Demo/tests default to the deterministic fake. Set false to talk to
+        /// <see cref="FacilitatorUrl"/> (optional testnet smoke).
+        /// </summary>
+        public bool UseFake { get; set; } = true;
+
+        [Range(0, int.MaxValue)]
+        public int FailNextVerifies { get; set; }
+
+        [Range(0, int.MaxValue)]
+        public int FailNextSettles { get; set; }
     }
 }

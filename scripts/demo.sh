@@ -34,8 +34,17 @@ REPLAY_ID=$(curl -sf -X POST "$API/api/orders" \
   -d "{\"restaurantId\":\"$RESTAURANT\",\"lines\":[{\"menuItemId\":\"$MARGHERITA\",\"quantity\":1,\"modifierIds\":[\"$SIZE_LARGE\"]}]}" | field orderId)
 echo "  replayed orderId: $REPLAY_ID $([ "$REPLAY_ID" = "$ORDER_ID" ] && echo '(same — idempotent)')"
 
-say "Confirming (payment happens now — draft → paid)"
-curl -sf -X POST "$API/api/orders/$ORDER_ID/confirm" -H "X-Customer-Id: $CUSTOMER" | field status | sed 's/^/  status: /'
+say "Confirming without X-PAYMENT (HTTP 402 challenge from the locked total)"
+CONFIRM_URL="$API/api/orders/$ORDER_ID/confirm"
+CHALLENGE=$(curl -s -w "\n%{http_code}" -X POST "$CONFIRM_URL" -H "X-Customer-Id: $CUSTOMER")
+CHALLENGE_CODE=$(echo "$CHALLENGE" | tail -n1)
+CHALLENGE_BODY=$(echo "$CHALLENGE" | sed '$d')
+echo "  HTTP $CHALLENGE_CODE | maxAmountRequired $(echo "$CHALLENGE_BODY" | python3 -c "import json,sys; print(json.load(sys.stdin)['accepts'][0]['maxAmountRequired'])")"
+[ "$CHALLENGE_CODE" = "402" ] || { say "expected 402, got $CHALLENGE_CODE"; exit 1; }
+
+say "Confirming with fake X-PAYMENT (draft → paid)"
+PAYMENT=$(python3 -c "import base64,json; print(base64.b64encode(json.dumps({'payer':'0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa','nonce':'$ORDER_ID'}).encode()).decode())")
+curl -sf -X POST "$CONFIRM_URL" -H "X-Customer-Id: $CUSTOMER" -H "X-PAYMENT: $PAYMENT" | field status | sed 's/^/  status: /'
 sleep 1
 
 say "Restaurant rejects → refund_pending, refund worker takes over"

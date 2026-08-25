@@ -18,6 +18,7 @@ builder.Services.AddSingleton<IOrderProjectionNotifier, SignalRProjectionNotifie
 builder.Services.AddOptions<OrderingOptions>()
     .BindConfiguration(OrderingOptions.SectionName)
     .ValidateDataAnnotations()
+    .Validate(o => !string.IsNullOrWhiteSpace(o.X402.PayToAddress), "Ordering__X402__PayToAddress is required.")
     .ValidateOnStart();
 
 builder.Services.AddSingleton(TimeProvider.System);

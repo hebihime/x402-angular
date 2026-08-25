@@ -7,6 +7,7 @@ using Ordering.Domain;
 using Ordering.Domain.Catalog;
 using Ordering.Domain.Orders;
 using Ordering.Infrastructure.Outbox;
+using Ordering.Infrastructure.Payments;
 
 namespace Ordering.Infrastructure.Persistence;
 
@@ -23,6 +24,7 @@ public sealed class OrderingDbContext(DbContextOptions<OrderingDbContext> option
     public DbSet<StatusHistoryEntry> StatusHistory => Set<StatusHistoryEntry>();
     public DbSet<Restaurant> Restaurants => Set<Restaurant>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<Payment> Payments => Set<Payment>();
 
     Task IUnitOfWork.SaveChangesAsync(CancellationToken cancellationToken) => SaveChangesAsync(cancellationToken);
 
@@ -64,6 +66,7 @@ public sealed class OrderingDbContext(DbContextOptions<OrderingDbContext> option
             entity.Property(o => o.Status).HasConversion(status).HasMaxLength(32);
             entity.Property(o => o.Total).HasConversion(money);
             entity.Property(o => o.ChargeId).HasMaxLength(100);
+            entity.Property(o => o.PayerAddress).HasMaxLength(66);
             entity.Property(o => o.RefundId).HasMaxLength(100);
             entity.Property(o => o.LastRefundError).HasMaxLength(1000);
 
@@ -156,6 +159,21 @@ public sealed class OrderingDbContext(DbContextOptions<OrderingDbContext> option
             entity.Property(m => m.Type).HasMaxLength(100);
             entity.Property(m => m.Payload).HasColumnType("jsonb");
             entity.HasIndex(m => m.ProcessedAt).HasFilter("processed_at IS NULL");
+        });
+
+        modelBuilder.Entity<Payment>(entity =>
+        {
+            entity.ToTable("payments");
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.PayerAddress).HasMaxLength(66);
+            entity.Property(p => p.PaymentPayloadHash).HasMaxLength(64);
+            entity.Property(p => p.TxHash).HasMaxLength(100);
+
+            entity.HasIndex(p => p.OrderId).IsUnique().HasDatabaseName("ux_payments_order_id");
+            entity.HasIndex(p => p.PaymentPayloadHash).IsUnique().HasDatabaseName("ux_payments_payload_hash");
+            entity.HasIndex(p => p.TxHash).IsUnique().HasDatabaseName("ux_payments_tx_hash");
+            entity.HasIndex(p => new { p.PayerAddress, p.SettledAt }).HasDatabaseName("ix_payments_payer_settled");
+            entity.HasOne<Order>().WithMany().HasForeignKey(p => p.OrderId).OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

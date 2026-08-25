@@ -39,6 +39,10 @@ public sealed class OrderingApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseSetting("Ordering:Refund:MaxAttempts", "3");
         builder.UseSetting("Ordering:Refund:BackoffBaseMs", "2000");
         builder.UseSetting("Ordering:Refund:BackoffCapMs", "60000");
+        builder.UseSetting("Ordering:X402:PayToAddress", "0x0000000000000000000000000000000000000001");
+        builder.UseSetting("Ordering:X402:UseFake", "true");
+        builder.UseSetting("Ordering:X402:Network", "base-sepolia");
+        builder.UseSetting("Ordering:X402:Asset", "0x036CbD53842c5426634e7929541eC2318f3dCF7e");
 
         builder.ConfigureTestServices(services =>
         {

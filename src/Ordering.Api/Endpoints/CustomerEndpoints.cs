@@ -51,7 +51,11 @@ public static class CustomerEndpoints
                 return problem;
             }
 
-            var result = await sender.Send(new ConfirmOrderCommand(orderId, customerId), ct);
+            var paymentHeader = http.Request.Headers["X-PAYMENT"].ToString();
+            var resource = $"{http.Request.Scheme}://{http.Request.Host}/api/orders/{orderId}/confirm";
+            var result = await sender.Send(
+                new ConfirmOrderCommand(orderId, customerId, string.IsNullOrWhiteSpace(paymentHeader) ? null : paymentHeader, resource),
+                ct);
             return result.ToHttpResult();
         });
 

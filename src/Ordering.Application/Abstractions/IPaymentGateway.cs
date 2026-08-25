@@ -9,14 +9,10 @@ public sealed record GatewayResult(bool Succeeded, string? TransactionId, string
 }
 
 /// <summary>
-/// The payment provider. Charges happen only at confirm; refunds are a
-/// separate gateway operation with their own lifecycle, never a reversal.
-/// The order id doubles as the gateway idempotency key, so a replayed charge
-/// or refund yields the same transaction id instead of settling twice.
+/// Outbound refund rail (phase 4 will retarget this at the recorded payer).
+/// Confirm no longer charges through this port — that is <see cref="IFacilitator"/>.
 /// </summary>
 public interface IPaymentGateway
 {
-    Task<GatewayResult> ChargeAsync(Guid orderId, string customerId, Money amount, CancellationToken cancellationToken);
-
     Task<GatewayResult> RefundAsync(Guid orderId, string chargeId, Money amount, CancellationToken cancellationToken);
 }

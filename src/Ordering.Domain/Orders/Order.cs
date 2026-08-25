@@ -46,6 +46,9 @@ public sealed class Order
 
     public DateTimeOffset ExpiresAt { get; private set; }
     public string? ChargeId { get; private set; }
+
+    /// <summary>Verified payer wallet, set exactly once at settlement.</summary>
+    public string? PayerAddress { get; private set; }
     public string? RefundId { get; private set; }
     public int RefundAttempts { get; private set; }
     public string? LastRefundError { get; private set; }
@@ -108,10 +111,16 @@ public sealed class Order
         return TransitionResult.Applied;
     }
 
-    /// <summary>Draft → paid after a successful gateway charge.</summary>
+    /// <summary>
+    /// Records the verified payer. Not a status write — settlement then
+    /// <see cref="Confirm"/> transitions draft → paid.
+    /// </summary>
+    public void AssignPayer(string payerAddress) => PayerAddress = payerAddress;
+
+    /// <summary>Draft → paid after facilitator-verified settlement.</summary>
     public TransitionResult Confirm(string chargeId, DateTimeOffset now)
     {
-        var result = TransitionTo(OrderStatus.Paid, Actor.System, now, "gateway charge succeeded");
+        var result = TransitionTo(OrderStatus.Paid, Actor.System, now, "facilitator-verified settlement");
         if (result.Transitioned)
         {
             ChargeId = chargeId;

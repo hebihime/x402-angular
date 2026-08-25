@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using Dapper;
 using Npgsql;
+using Ordering.Infrastructure.Payments;
 using Ordering.Infrastructure.Persistence;
 
 namespace Ordering.Tests.Integration;
@@ -44,7 +45,19 @@ public sealed class ApiDriver(OrderingApiFactory factory)
         return await ReadJsonAsync(response);
     }
 
-    public async Task<HttpResponseMessage> ConfirmAsync(Guid orderId, string customerId)
+    public const string DefaultPayer = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+
+    public async Task<HttpResponseMessage> ConfirmAsync(Guid orderId, string customerId, string? paymentHeader = null)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Post, $"/api/orders/{orderId}/confirm");
+        request.Headers.Add("X-Customer-Id", customerId);
+        request.Headers.Add(
+            "X-PAYMENT",
+            paymentHeader ?? FakeFacilitator.EncodePaymentHeader(DefaultPayer, orderId.ToString("N")));
+        return await Client.SendAsync(request);
+    }
+
+    public async Task<HttpResponseMessage> ConfirmWithoutPaymentAsync(Guid orderId, string customerId)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"/api/orders/{orderId}/confirm");
         request.Headers.Add("X-Customer-Id", customerId);

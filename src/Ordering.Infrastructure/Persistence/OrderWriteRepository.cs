@@ -26,6 +26,9 @@ public sealed class OrderWriteRepository(OrderingDbContext dbContext) : IOrderWr
 
     public void Add(Order order) => dbContext.Orders.Add(order);
 
+    public Task<Order?> GetAsync(Guid orderId, CancellationToken cancellationToken) =>
+        dbContext.Orders.AsNoTracking().SingleOrDefaultAsync(o => o.Id == orderId, cancellationToken);
+
     /// <summary>
     /// Loads with a row lock so concurrent transitions on the same order
     /// serialize; combined with the transaction the behavior opened, the state

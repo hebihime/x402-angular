@@ -7,38 +7,22 @@ using Ordering.Domain;
 namespace Ordering.Infrastructure.Payments;
 
 /// <summary>
-/// The one sanctioned fake: a deterministic, failure-injectable gateway.
-/// Transaction ids derive from the order id, so a replayed charge or refund
-/// returns the same id instead of settling twice. "Fail the next N calls" is
-/// seeded from configuration and can be topped up at runtime for demos/tests.
+/// Simulated outbound refunds until phase 4 retargets them at the recorded
+/// payer. Confirm no longer charges here. "Fail the next N refunds" is seeded
+/// from configuration and can be topped up at runtime for demos/tests.
 /// </summary>
 public sealed class SimulatedPaymentGateway : IPaymentGateway
 {
     private readonly ILogger<SimulatedPaymentGateway> _logger;
-    private int _failNextCharges;
     private int _failNextRefunds;
 
     public SimulatedPaymentGateway(IOptions<OrderingOptions> options, ILogger<SimulatedPaymentGateway> logger)
     {
         _logger = logger;
-        _failNextCharges = options.Value.Gateway.FailNextCharges;
         _failNextRefunds = options.Value.Gateway.FailNextRefunds;
     }
 
-    public void InjectChargeFailures(int count) => Interlocked.Add(ref _failNextCharges, count);
-
     public void InjectRefundFailures(int count) => Interlocked.Add(ref _failNextRefunds, count);
-
-    public Task<GatewayResult> ChargeAsync(Guid orderId, string customerId, Money amount, CancellationToken cancellationToken)
-    {
-        if (TryConsumeFailure(ref _failNextCharges))
-        {
-            _logger.LogWarning("Simulated gateway declined charge for order {OrderId}", orderId);
-            return Task.FromResult(GatewayResult.Fail("Simulated gateway declined the charge."));
-        }
-
-        return Task.FromResult(GatewayResult.Ok($"ch_{orderId:N}"));
-    }
 
     public Task<GatewayResult> RefundAsync(Guid orderId, string chargeId, Money amount, CancellationToken cancellationToken)
     {

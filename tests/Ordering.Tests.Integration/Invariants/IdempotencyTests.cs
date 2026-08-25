@@ -68,6 +68,9 @@ public class IdempotencyTests(OrderingApiFactory factory)
             new { orderId });
         chargeIds.Should().Be(1);
 
+        (await _api.ScalarAsync<int>("SELECT COUNT(*) FROM payments WHERE order_id = @orderId", new { orderId }))
+            .Should().Be(1);
+
         var paidTransitions = await _api.ScalarAsync<int>(
             "SELECT COUNT(*) FROM status_history WHERE order_id = @orderId AND \"to\" = 'paid'",
             new { orderId });
