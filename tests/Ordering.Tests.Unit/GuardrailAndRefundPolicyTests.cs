@@ -40,6 +40,12 @@ public class GuardrailAndRefundPolicyTests
     }
 
     [Fact]
+    public void Payer_addresses_are_compared_case_insensitively()
+    {
+        Payer.Normalize("  0xABCDef0123456789  ").Should().Be("0xabcdef0123456789");
+    }
+
+    [Fact]
     public void Refund_backoff_requires_at_least_one_failed_attempt()
     {
         var act = () => RefundPolicy.Backoff(0, 1000, 10000);

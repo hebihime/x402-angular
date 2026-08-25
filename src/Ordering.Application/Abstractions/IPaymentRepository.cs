@@ -1,3 +1,5 @@
+using Ordering.Domain;
+
 namespace Ordering.Application.Abstractions;
 
 public sealed record PaymentRecord(
@@ -20,4 +22,10 @@ public interface IPaymentRepository
     Task<bool> TryAddAsync(PaymentRecord payment, CancellationToken cancellationToken);
 
     Task AcquirePayerAdvisoryLockAsync(string payerAddress, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Cumulative settled spend for the payer since <paramref name="since"/>,
+    /// excluding refunded orders (money that came back).
+    /// </summary>
+    Task<Money> GetSpendSinceAsync(string payerAddress, DateTimeOffset since, Guid? excludeOrderId, CancellationToken cancellationToken);
 }

@@ -7,8 +7,9 @@ public sealed record GuardrailCheck(bool Passed, string? Violation)
 }
 
 /// <summary>
-/// Spend guardrails, keyed on the customer id (the only identity in the
-/// system). Enforced at draft creation and re-checked at confirm.
+/// Spend guardrails. Max-order runs at draft and again at confirm. Daily cap
+/// at draft keys on <c>X-Customer-Id</c>; at confirm it keys on the verified
+/// payer wallet.
 /// </summary>
 public static class SpendGuardrails
 {

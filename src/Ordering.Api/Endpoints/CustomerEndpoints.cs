@@ -1,6 +1,7 @@
 using MediatR;
 using Ordering.Api.Http;
 using Ordering.Application.Catalog.Queries;
+using Ordering.Application.Guardrails;
 using Ordering.Application.Orders.Commands;
 using Ordering.Application.Orders.Queries;
 
@@ -20,6 +21,9 @@ public static class CustomerEndpoints
 
     public static void MapCustomerEndpoints(this IEndpointRouteBuilder app)
     {
+        app.MapGet("/api/guardrails", async (ISender sender, CancellationToken ct) =>
+            Results.Ok(await sender.Send(new GetGuardrailsQuery(), ct)));
+
         app.MapGet("/api/restaurants", async (string? city, ISender sender, CancellationToken ct) =>
             Results.Ok(await sender.Send(new ListRestaurantsQuery(city), ct)));
 

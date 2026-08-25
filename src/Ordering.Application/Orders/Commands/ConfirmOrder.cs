@@ -84,7 +84,8 @@ public sealed class ConfirmOrderCommandHandler(
             return Challenge(invalid.Reason, requirements);
         }
 
-        var dailyCapError = await RecheckDailyCapAsync(order, options.Value, now, cancellationToken);
+        var payer = Payer.Normalize(((FacilitatorVerifyResult.Valid)verification).PayerAddress);
+        var dailyCapError = await RecheckDailyCapAsync(order, payer, options.Value, now, cancellationToken);
         if (dailyCapError is not null)
         {
             return dailyCapError;
@@ -102,7 +103,7 @@ public sealed class ConfirmOrderCommandHandler(
         return await transactions.InTransactionAsync(
             () => RecordSettlementAsync(
                 command.OrderId,
-                succeeded.PayerAddress,
+                Payer.Normalize(succeeded.PayerAddress),
                 payloadHash,
                 succeeded.TxHash,
                 command.ResourceUrl,
@@ -170,7 +171,7 @@ public sealed class ConfirmOrderCommandHandler(
             return Result<OrderDto>.Fail(ErrorKind.GuardrailViolation, maxOrder.Violation!);
         }
 
-        var dailyCapError = await RecheckDailyCapAsync(order, settings, now, cancellationToken);
+        var dailyCapError = await RecheckDailyCapAsync(order, payerAddress, settings, now, cancellationToken);
         if (dailyCapError is not null)
         {
             return dailyCapError;
@@ -203,12 +204,13 @@ public sealed class ConfirmOrderCommandHandler(
 
     private async Task<Result<OrderDto>?> RecheckDailyCapAsync(
         Domain.Orders.Order order,
+        string payerAddress,
         OrderingOptions settings,
         DateTimeOffset now,
         CancellationToken cancellationToken)
     {
         var utcDayStart = new DateTimeOffset(now.UtcDateTime.Date, TimeSpan.Zero);
-        var priorSpend = await orders.GetSpendSinceAsync(order.CustomerId, utcDayStart, order.Id, cancellationToken);
+        var priorSpend = await payments.GetSpendSinceAsync(payerAddress, utcDayStart, order.Id, cancellationToken);
         var dailyCap = SpendGuardrails.CheckDailySpendCap(priorSpend, order.Total, new Money(settings.DailySpendCapMinorUnits));
         return dailyCap.Passed
             ? null

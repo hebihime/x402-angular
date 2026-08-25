@@ -47,6 +47,9 @@ public sealed class ApiDriver(OrderingApiFactory factory)
 
     public const string DefaultPayer = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
 
+    public static string PaymentHeader(string payer, Guid orderId) =>
+        FakeFacilitator.EncodePaymentHeader(payer, orderId.ToString("N"));
+
     public async Task<HttpResponseMessage> ConfirmAsync(Guid orderId, string customerId, string? paymentHeader = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, $"/api/orders/{orderId}/confirm");
