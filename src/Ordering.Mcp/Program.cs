@@ -4,6 +4,12 @@ using Microsoft.Extensions.Logging;
 using ModelContextProtocol.Server;
 using Ordering.Mcp;
 
+if (args is ["demo"])
+{
+    Environment.ExitCode = await DemoRunner.RunAsync(CancellationToken.None);
+    return;
+}
+
 var builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddConsole(options =>
 {
@@ -11,27 +17,13 @@ builder.Logging.AddConsole(options =>
     options.LogToStandardErrorThreshold = LogLevel.Trace;
 });
 
-var apiUrl = OptionalEnv("API_URL") ?? "http://localhost:5240";
-var customerId = OptionalEnv("CUSTOMER_ID") ?? "mcp-agent";
-var fakePayer = OptionalEnv("X402_FAKE_PAYER");
-var agentKey = OptionalEnv("AGENT_PRIVATE_KEY");
+var apiUrl = McpRuntime.ApiUrl;
+var customerId = McpRuntime.CustomerId;
+var fakePayer = McpRuntime.FakePayer;
+var agentKey = McpRuntime.AgentPrivateKey;
+var canPay = !string.IsNullOrWhiteSpace(fakePayer);
 
-var baseAddress = new Uri(apiUrl.TrimEnd('/') + "/");
-var plain = new HttpClient { BaseAddress = baseAddress };
-
-HttpClient paying = plain;
-var canPay = false;
-if (fakePayer is not null)
-{
-    paying = new HttpClient(new ChallengeRetryHandler(new FakePayerHeaderProvider(fakePayer), new HttpClientHandler()))
-    {
-        BaseAddress = baseAddress,
-    };
-    canPay = true;
-}
-
-builder.Services.AddSingleton(new ApiClient(plain, customerId, paying, canPay));
-builder.Services.AddSingleton<OrderingTools>();
+builder.Services.AddSingleton(McpRuntime.CreateTools(customerId, fakePayer));
 builder.Services
     .AddMcpServer(options =>
     {
@@ -50,7 +42,7 @@ builder.Services
 var host = builder.Build();
 
 Console.Error.WriteLine(
-    $"ordering mcp server on stdio -> {baseAddress} customer={customerId} " +
+    $"ordering mcp server on stdio -> {McpRuntime.BaseAddress} customer={customerId} " +
     (canPay
         ? $"(fake payer {fakePayer})"
         : agentKey is not null
@@ -58,9 +50,3 @@ Console.Error.WriteLine(
             : "(no wallet: confirm_order will return the 402 challenge unpaid)"));
 
 await host.RunAsync();
-
-static string? OptionalEnv(string name)
-{
-    var value = Environment.GetEnvironmentVariable(name)?.Trim();
-    return string.IsNullOrEmpty(value) ? null : value;
-}
