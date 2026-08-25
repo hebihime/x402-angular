@@ -24,7 +24,10 @@ public sealed class OrderReadRepository(NpgsqlDataSource dataSource) : IOrderRea
         DateTime ExpiresAt,
         int RefundAttempts,
         string? LastRefundError,
-        bool ManualIntervention);
+        bool ManualIntervention,
+        string? PayerAddress,
+        string? PaymentTxHash,
+        string? RefundTxHash);
 
     private sealed record HistoryRow(string? FromStatus, string ToStatus, string Actor, DateTime At, string? Reason);
 
@@ -35,7 +38,8 @@ public sealed class OrderReadRepository(NpgsqlDataSource dataSource) : IOrderRea
         order_id AS OrderId, restaurant_id AS RestaurantId, customer_id AS CustomerId,
         status AS Status, total AS Total, NULL::text AS Lines, created_at AS CreatedAt,
         updated_at AS UpdatedAt, expires_at AS ExpiresAt, refund_attempts AS RefundAttempts,
-        last_refund_error AS LastRefundError, manual_intervention AS ManualIntervention
+        last_refund_error AS LastRefundError, manual_intervention AS ManualIntervention,
+        payer_address AS PayerAddress, payment_tx_hash AS PaymentTxHash, refund_tx_hash AS RefundTxHash
         """;
 
     public async Task<IReadOnlyList<OrderSummaryDto>> ListForRestaurantAsync(Guid restaurantId, OrderStatus? status, CancellationToken cancellationToken)
@@ -61,7 +65,8 @@ public sealed class OrderReadRepository(NpgsqlDataSource dataSource) : IOrderRea
             SELECT order_id AS OrderId, restaurant_id AS RestaurantId, customer_id AS CustomerId,
                    status AS Status, total AS Total, lines AS Lines, created_at AS CreatedAt,
                    updated_at AS UpdatedAt, expires_at AS ExpiresAt, refund_attempts AS RefundAttempts,
-                   last_refund_error AS LastRefundError, manual_intervention AS ManualIntervention
+                   last_refund_error AS LastRefundError, manual_intervention AS ManualIntervention,
+                   payer_address AS PayerAddress, payment_tx_hash AS PaymentTxHash, refund_tx_hash AS RefundTxHash
             FROM read_orders WHERE order_id = @orderId
             """,
             new { orderId },
@@ -89,7 +94,10 @@ public sealed class OrderReadRepository(NpgsqlDataSource dataSource) : IOrderRea
             row.RefundAttempts,
             row.LastRefundError,
             row.ManualIntervention,
-            history);
+            history,
+            row.PayerAddress,
+            row.PaymentTxHash,
+            row.RefundTxHash);
     }
 
     public async Task<IReadOnlyList<HistoryEntryDto>> GetHistoryAsync(Guid orderId, CancellationToken cancellationToken)
@@ -120,5 +128,8 @@ public sealed class OrderReadRepository(NpgsqlDataSource dataSource) : IOrderRea
         AsUtc(row.UpdatedAt),
         row.RefundAttempts,
         row.LastRefundError,
-        row.ManualIntervention);
+        row.ManualIntervention,
+        row.PayerAddress,
+        row.PaymentTxHash,
+        row.RefundTxHash);
 }

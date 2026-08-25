@@ -98,16 +98,21 @@ public sealed class OutboxProjectionProcessor(
             """
             INSERT INTO read_orders (order_id, restaurant_id, customer_id, status, total, lines,
                                      created_at, updated_at, expires_at, refund_attempts,
-                                     last_refund_error, manual_intervention)
+                                     last_refund_error, manual_intervention,
+                                     payer_address, payment_tx_hash, refund_tx_hash)
             VALUES (@OrderId, @RestaurantId, @CustomerId, @Status, @Total, @Lines::jsonb,
                     @CreatedAt, @UpdatedAt, @ExpiresAt, @RefundAttempts,
-                    @LastRefundError, @ManualIntervention)
+                    @LastRefundError, @ManualIntervention,
+                    @PayerAddress, @PaymentTxHash, @RefundTxHash)
             ON CONFLICT (order_id) DO UPDATE SET
                 status = EXCLUDED.status,
                 updated_at = EXCLUDED.updated_at,
                 refund_attempts = EXCLUDED.refund_attempts,
                 last_refund_error = EXCLUDED.last_refund_error,
-                manual_intervention = EXCLUDED.manual_intervention
+                manual_intervention = EXCLUDED.manual_intervention,
+                payer_address = EXCLUDED.payer_address,
+                payment_tx_hash = EXCLUDED.payment_tx_hash,
+                refund_tx_hash = EXCLUDED.refund_tx_hash
             """,
             new
             {
@@ -123,6 +128,9 @@ public sealed class OutboxProjectionProcessor(
                 snapshot.RefundAttempts,
                 snapshot.LastRefundError,
                 ManualIntervention = snapshot.ManualInterventionRequired,
+                snapshot.PayerAddress,
+                snapshot.PaymentTxHash,
+                snapshot.RefundTxHash,
             },
             transaction,
             cancellationToken: cancellationToken));
@@ -165,7 +173,10 @@ public sealed class OutboxProjectionProcessor(
             message.OccurredAt,
             snapshot.RefundAttempts,
             snapshot.LastRefundError,
-            snapshot.ManualInterventionRequired);
+            snapshot.ManualInterventionRequired,
+            snapshot.PayerAddress,
+            snapshot.PaymentTxHash,
+            snapshot.RefundTxHash);
 
         return new OrderProjectionEvent(message.Type, summary, historyDto);
     }

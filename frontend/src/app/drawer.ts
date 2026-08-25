@@ -39,6 +39,21 @@ const RESTAURANT_ACTIONS: Partial<Record<OrderStatus, { action: DashboardAction;
             <span class="drawer__customer">{{ order.customerId }}</span>
           </div>
 
+          @if (order.payerAddress || order.paymentTxHash || order.refundTxHash) {
+            <section class="drawer__section">
+              <h3>Settlement</h3>
+              @if (order.payerAddress) {
+                <p class="drawer__kv"><span>payer</span><code>{{ order.payerAddress }}</code></p>
+              }
+              @if (order.paymentTxHash) {
+                <p class="drawer__kv"><span>payment</span><code>{{ order.paymentTxHash }}</code></p>
+              }
+              @if (order.refundTxHash) {
+                <p class="drawer__kv"><span>refund</span><code>{{ order.refundTxHash }}</code></p>
+              }
+            </section>
+          }
+
           <section class="drawer__section">
             <h3>Items</h3>
             <ul class="lines">

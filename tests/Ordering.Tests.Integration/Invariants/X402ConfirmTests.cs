@@ -62,6 +62,8 @@ public class X402ConfirmTests(OrderingApiFactory factory)
         var paid = await ApiDriver.ReadJsonAsync(await _api.Client.SendAsync(request));
         paid.GetProperty("status").GetString().Should().Be("paid");
         paid.GetProperty("total").GetString().Should().Be("1450");
+        paid.GetProperty("payerAddress").GetString().Should().Be(ApiDriver.DefaultPayer);
+        paid.GetProperty("paymentTxHash").GetString().Should().StartWith("0x");
 
         var amount = await _api.ScalarAsync<long>("SELECT amount_minor_units FROM payments WHERE order_id = @orderId", new { orderId });
         amount.Should().Be(1450);

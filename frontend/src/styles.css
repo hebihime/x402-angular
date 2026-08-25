@@ -331,6 +331,26 @@ body {
   color: var(--muted);
 }
 
+.drawer__kv {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.drawer__kv span {
+  flex: 0 0 auto;
+}
+
+.drawer__kv code {
+  color: var(--text);
+  font: inherit;
+  word-break: break-all;
+  text-align: right;
+}
+
 .drawer__section {
   border-top: 1px solid var(--line);
   padding: 12px 0;

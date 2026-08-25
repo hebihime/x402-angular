@@ -120,13 +120,14 @@ public sealed class Order
     /// <summary>Draft → paid after facilitator-verified settlement.</summary>
     public TransitionResult Confirm(string chargeId, DateTimeOffset now)
     {
-        var result = TransitionTo(OrderStatus.Paid, Actor.System, now, "facilitator-verified settlement");
-        if (result.Transitioned)
+        if (!OrderStateMachine.IsAllowed(Status, OrderStatus.Paid, Actor.System))
         {
-            ChargeId = chargeId;
+            return TransitionResult.Ignored;
         }
 
-        return result;
+        // Set before TransitionTo so the outbox snapshot carries the settlement tx.
+        ChargeId = chargeId;
+        return TransitionTo(OrderStatus.Paid, Actor.System, now, "facilitator-verified settlement");
     }
 
     /// <summary>
@@ -149,13 +150,13 @@ public sealed class Order
     /// <summary>Refund_pending → refunded after a successful outbound transfer to the payer.</summary>
     public TransitionResult RecordRefundSuccess(string refundId, DateTimeOffset now)
     {
-        var result = TransitionTo(OrderStatus.Refunded, Actor.System, now, "outbound transfer to payer succeeded");
-        if (result.Transitioned)
+        if (!OrderStateMachine.IsAllowed(Status, OrderStatus.Refunded, Actor.System))
         {
-            RefundId = refundId;
+            return TransitionResult.Ignored;
         }
 
-        return result;
+        RefundId = refundId;
+        return TransitionTo(OrderStatus.Refunded, Actor.System, now, "outbound transfer to payer succeeded");
     }
 
     /// <summary>
@@ -210,5 +211,8 @@ public sealed class Order
         ExpiresAt,
         RefundAttempts,
         LastRefundError,
-        ManualInterventionRequired);
+        ManualInterventionRequired,
+        PayerAddress,
+        ChargeId,
+        RefundId);
 }

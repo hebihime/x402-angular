@@ -64,6 +64,9 @@ export const OrderSummary = z.object({
   refundAttempts: z.number().int().nonnegative(),
   lastRefundError: z.string().nullable(),
   manualInterventionRequired: z.boolean(),
+  payerAddress: z.string().nullable(),
+  paymentTxHash: z.string().nullable(),
+  refundTxHash: z.string().nullable(),
 });
 export type OrderSummary = z.infer<typeof OrderSummary>;
 

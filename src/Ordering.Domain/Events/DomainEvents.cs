@@ -26,7 +26,10 @@ public sealed record OrderSnapshot(
     DateTimeOffset ExpiresAt,
     int RefundAttempts,
     string? LastRefundError,
-    bool ManualInterventionRequired);
+    bool ManualInterventionRequired,
+    string? PayerAddress = null,
+    string? PaymentTxHash = null,
+    string? RefundTxHash = null);
 
 public sealed record HistoryDelta(
     OrderStatus? From,

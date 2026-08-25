@@ -1,15 +1,19 @@
-# Ordering — CQRS restaurant ordering in .NET 10
+# Ordering — x402 merchant, CQRS-first, in .NET 10
 
-A portfolio re-implementation of a restaurant-ordering domain I first built as
-an event-driven TypeScript monolith (x402-food). This repo is the counterpart:
-the **same domain, rebuilt CQRS-first in .NET 10 LTS, where the architecture is
-the deliverable**. Customers place, confirm, and cancel orders; a restaurant
-dashboard accepts, prepares, and completes them; a refund lifecycle with retry
-and a terminal manual-intervention state handles rejections.
+A demo x402 merchant for restaurant ordering. Same domain as the TypeScript
+prototype (`x402-food`), rebuilt in .NET 10 LTS so the architecture is
+load-bearing: MediatR pipeline, EF write / Dapper read, then a real HTTP 402
+handshake, a facilitator, and a C# MCP adapter.
+
+Three seeded shops (Pixel Pizza, Noodle Nexus, Burger Bureau), one API, one
+`payTo`, one Angular kitchen board. An agent discovers, drafts, and pays via
+MCP; the kitchen runs the order on the dashboard. Nobody onboarded a real
+restaurant.
 
 **Stack:** .NET 10 LTS · ASP.NET Core minimal APIs · MediatR + FluentValidation ·
-EF Core / PostgreSQL write model · Dapper read projections · SignalR ·
-Angular 22 (standalone, signals). One host — no broker, no extra services.
+EF Core / PostgreSQL write model · Dapper read projections · SignalR · x402
+exact scheme (USDC, Base Sepolia) · C# MCP (stdio) · Angular 22 (standalone,
+signals, Zod at the wire). One host — no broker, no extra services.
 
 ## Why this domain genuinely earns CQRS
 
@@ -21,8 +25,8 @@ scaling characteristics, so splitting them is a decision the domain makes, not
 a pattern applied for its own sake:
 
 - **Write model** (EF Core + PostgreSQL): normalized orders with snapshotted
-  line items, a status-history table, and an outbox — optimized for guarded
-  transitions in single transactions.
+  line items, a status-history table, a payments table, and an outbox —
+  optimized for guarded transitions in single transactions.
 - **Read model** (Dapper over denormalized projection tables): exactly what the
   board and drawer render, built by a projector draining the outbox in order,
   then broadcast over SignalR. Query handlers never touch the DbContext.
@@ -30,29 +34,36 @@ a pattern applied for its own sake:
 ```mermaid
 flowchart LR
     subgraph clients
-        C[Customer API] --- D[Dashboard / Angular]
+        A[Agent / MCP] --- C[Customer HTTP]
+        D[Kitchen board / Angular]
     end
     subgraph host [one ASP.NET Core host]
         E[Minimal endpoints] --> M[MediatR pipeline<br/>Logging → Validation →<br/>Idempotency → Transaction]
         M --> H[Command handlers<br/>Order.TransitionTo]
         H -->|one tx: status +<br/>history + outbox| W[(write model<br/>EF Core)]
+        F[IFacilitator<br/>verify / settle] -.-> H
+        RFD[IRefundRail<br/>push to payer] -.-> H
         P[Projector<br/>BackgroundService] -->|drain in order| W
         P -->|upsert| R[(read model<br/>projection tables)]
         P -->|after commit| S[SignalR hub]
         Q[Query handlers<br/>Dapper only] --> R
         WK[Workers: expiry ·<br/>acceptance-timeout · refund] --> M
-        G[Simulated payment gateway<br/>failure-injectable]
-        H --> G
     end
-    E --> Q
+    A -->|stdio, thin HTTP| C
+    C --> E
+    D --> E
     S --> D
 ```
+
+Place and cancel are free customer HTTP (`X-Customer-Id`). Confirm is the
+**only** 402-gated call. MCP is a thin HTTP client of that surface — not
+MediatR, not DbContext. The board never pays.
 
 ## The state machine is law
 
 A transition is valid only if the `(from, to, actor)` tuple exists in the table
 below — including the actor, which is derived from which surface was called
-(customer endpoints, dashboard endpoints, workers), never from request
+(customer HTTP / MCP, dashboard, workers/settlement), never from request
 payloads. Invalid or repeated transitions return the current state with **no
 side effects**. `Order.TransitionTo` is the only code path that changes a
 status, and every applied transition writes three things in one transaction:
@@ -61,7 +72,7 @@ the status, a history row, and an outbox event.
 | From | To | Actor | Trigger |
 |---|---|---|---|
 | (none) | draft | customer | place (reprice, snapshot, lock total, set expiry) |
-| draft | paid | system | confirm → gateway charge succeeded |
+| draft | paid | system | confirm: facilitator-verified settlement |
 | draft | cancelled | customer | cancel before payment |
 | draft | expired | system | expiry worker, TTL elapsed |
 | paid | accepted / rejected | restaurant | dashboard |
@@ -70,7 +81,7 @@ the status, a history row, and an outbox event.
 | preparing | ready | restaurant | dashboard |
 | ready | completed | restaurant | dashboard |
 | rejected | refund_pending | system | automatic, same transaction as the rejection |
-| refund_pending | refunded | system | refund worker, gateway refund succeeded |
+| refund_pending | refunded | system | refund worker: outbound transfer to the recorded payer |
 | refund_pending | refund_failed | system | retries exhausted → manual-intervention flag |
 
 ## Where MediatR earns its keep
@@ -88,40 +99,38 @@ Four pipeline behaviors, in a deliberate order:
    what makes "three writes, one transaction" structural rather than
    disciplined: handlers physically cannot commit a transition piecemeal.
 
-Ordering rationale: log everything including rejects; refuse garbage before
-spending I/O; answer replays without doing work; only then pay for a
-transaction.
+Confirm's facilitator I/O is **not** an `ICommand`: verify/settle run outside
+the write transaction that holds `FOR UPDATE`. `recordSettlement` then
+transitions `draft → paid`.
 
 ## Hard guarantees (each encoded in `tests/…/Invariants`)
 
 - **The server is the only pricing authority.** The place request has no price
-  fields; injected ones are ignored. Every line is repriced from the current
-  menu, modifier deltas applied, snapshots and total locked at draft creation
-  — later menu edits change nothing.
+  fields; injected ones are ignored. The 402 challenge is built from the
+  **locked** total (USDC 6-decimal atomic = cents × 10_000 at 1:1).
+- **Two-phase ordering; only confirm is 402-gated.** No `X-PAYMENT` → HTTP 402
+  with x402 `accepts[]` (not ProblemDetails). Header present → verify →
+  payer-keyed daily cap → settle → payment row → `draft → paid`. A replayed
+  payment returns the original success and never hits the facilitator again.
 - **Idempotency on every mutating surface.** Place is keyed on
-  `Idempotency-Key` + customer with a DB unique constraint (a 3-way concurrent
-  race converges on one order in the tests). Confirm is keyed on the charge id
-  at the constraint level, and the order id doubles as the gateway idempotency
-  key — a replayed confirm settles nothing. Transitions are idempotent via the
-  state-machine table.
-- **Two-phase ordering.** Placing is free; money moves only at confirm.
-  Refunds are not reversals: they're a separate gateway operation owned by a
-  background worker with exponential backoff (base·2ⁿ, capped), ending either
-  in `refunded` or terminal `refund_failed` with a dashboard-visible
-  manual-intervention flag.
-- **Guardrails key on the customer id** (the only identity in the system): a
-  global max order value and a daily cumulative spend cap, enforced at draft
-  creation and re-checked at confirm.
-- **Money is integers.** Minor units stored as `long`, serialized as strings
-  everywhere (API, outbox payloads, SignalR). No `decimal` or `double`
-  anywhere; the Angular app keeps money as strings and formats in exactly one
-  pipe.
+  `Idempotency-Key` + customer. Settlement is keyed on payload hash / tx hash
+  at the DB constraint. MCP must pass the client's idempotency key through; it
+  must not generate one.
+- **Refunds are a new outbound transfer** to the recorded payer wallet, not an
+  undo of settlement. The refund worker retries with exponential backoff
+  (base·2ⁿ, capped) and ends in `refunded` or terminal `refund_failed` with a
+  dashboard-visible manual-intervention flag.
+- **Guardrails.** Max-order at draft and confirm. Daily cap at confirm keys on
+  the **verified payer wallet**, not `X-Customer-Id`. `GET /api/guardrails`
+  publishes the limits so an agent can size a basket before drafting.
+- **Money is integers.** Domain amounts are USD cents (`long`), serialized as
+  strings. Display happens at one Angular pipe and one MCP format helper.
 
 ## Eventual consistency, embraced
 
 The read model lags the write model by design (a polling projector, ~hundreds
-of ms). The demo script makes this visible: the first poll after a rejection
-can still show `paid`. The dashboard is built for it — SignalR events patch the
+of ms). The demo script makes this visible: the first poll after payment can
+still show `draft`. The dashboard is built for it — SignalR events patch the
 board in place, a rejected transition or reconnect triggers a full re-sync, and
 a not-yet-projected order is a plain 404 rather than a fallback read against
 the write model. The Angular app validates every payload (REST and SignalR)
@@ -134,15 +143,25 @@ docker compose up -d               # postgres (host port 5441)
 dotnet ef database update -p src/Ordering.Infrastructure -s src/Ordering.Api
 dotnet run --project src/Ordering.Api    # API + SignalR + projector + workers, one host
                                          # (seeds demo restaurants on first boot)
-dotnet test                        # 39 unit + 30 integration/invariant tests (Testcontainers)
-cd frontend && npm start           # dashboard on http://localhost:4200
-./scripts/demo.sh                  # place → confirm → reject → refund with 2 injected
-                                   # gateway failures → recovered refund, live on the board
+dotnet test                        # unit + integration/invariants (Testcontainers)
+cd frontend && npm start           # kitchen board on http://localhost:4200
+./scripts/demo.sh                  # MCP tools + fake facilitator:
+                                   # place → 402 → pay → replay → reject →
+                                   # two refund-rail failures → refunded
+dotnet run --project src/Ordering.Mcp            # stdio MCP → API_URL
+dotnet run --project src/Ordering.Mcp -- demo    # same story as demo.sh
 ```
 
+MCP env: `API_URL` (default `http://localhost:5240`), `CUSTOMER_ID` (default
+`mcp-agent`), `X402_FAKE_PAYER` (answers 402 against the fake facilitator).
+
 Requires the .NET 10 SDK (`global.json` pins 10.0.x), Docker, and Node 24.
-No auth by design — `X-Customer-Id` is the only principal; that's out of
-scope on purpose.
+No auth by design — place/cancel use `X-Customer-Id`; settlement identity is
+the verified payer wallet.
+
+Tests and the demo run against a **fake facilitator** (fail N then succeed).
+Hitting `https://x402.org/facilitator` on Base Sepolia is optional smoke, not
+merge criteria.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs on every push and pull
 request: `dotnet build` + `dotnet test` (Testcontainers Postgres; no
@@ -156,10 +175,12 @@ Honest deltas between this demo and something I'd run for money:
 
 - **Real identity and authorization.** The customer-id header and the
   unscoped dashboard are demo affordances; every surface needs authn/z.
-- **Gateway calls inside the command transaction** (confirm, refund) hold a
-  row lock across a network call. Production would record intent, release the
-  transaction, call the gateway, and reconcile — an extra state or a
-  charge/refund attempt table.
+- **A real x402 buyer signer** on the MCP paying seam (`AGENT_PRIVATE_KEY`).
+  Tests/demo use `X402_FAKE_PAYER`; live Base Sepolia is optional smoke.
+- **Refund I/O inside the command transaction** still holds a row lock across
+  the (currently in-process) fake rail. A chain client would record intent,
+  release `FOR UPDATE`, transfer, and reconcile — the same split confirm
+  already uses for the facilitator.
 - **Projector throughput.** A single polling projector is the simplest thing
   that preserves ordering. At scale: `LISTEN/NOTIFY` or logical decoding to
   kill the poll loop, per-order partitioning for parallelism, and a
@@ -176,8 +197,7 @@ Honest deltas between this demo and something I'd run for money:
 
 ## Repo conventions
 
-`CLAUDE.md` is the enforcement layer for the design (state machine, invariants,
-anti-patterns); `docs/DESIGN.md` is the original build plan;
-`docs/DECISIONS.md` records judgment calls; `docs/HANDOFF.md` is the
-session-to-session log. The invariant test suite is the contract — later
-changes must not weaken it.
+The invariant test suite is the contract — later changes must not weaken it.
+`docs/DESIGN.md` is the original CQRS superprompt (historical: simulated
+gateway). The live target is an x402 merchant; when they disagree, the code
+and the invariant tests win.

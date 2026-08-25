@@ -51,6 +51,9 @@ public class ProjectionTests(OrderingApiFactory factory)
         details.GetProperty("history")[0].GetProperty("to").GetString().Should().Be("draft");
         details.GetProperty("history")[1].GetProperty("to").GetString().Should().Be("paid");
         details.GetProperty("history")[1].GetProperty("actor").GetString().Should().Be("system");
+        details.GetProperty("payerAddress").GetString().Should().Be(ApiDriver.DefaultPayer);
+        details.GetProperty("paymentTxHash").GetString().Should().StartWith("0x");
+        details.GetProperty("refundTxHash").ValueKind.Should().Be(System.Text.Json.JsonValueKind.Null);
     }
 
     [Fact]

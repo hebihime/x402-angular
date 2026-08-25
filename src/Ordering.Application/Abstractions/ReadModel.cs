@@ -36,7 +36,10 @@ public sealed record OrderSummaryDto(
     DateTimeOffset UpdatedAt,
     int RefundAttempts,
     string? LastRefundError,
-    bool ManualInterventionRequired);
+    bool ManualInterventionRequired,
+    string? PayerAddress = null,
+    string? PaymentTxHash = null,
+    string? RefundTxHash = null);
 
 public sealed record HistoryEntryDto(string? From, string To, string Actor, DateTimeOffset At, string? Reason);
 
@@ -53,7 +56,10 @@ public sealed record OrderDetailsDto(
     int RefundAttempts,
     string? LastRefundError,
     bool ManualInterventionRequired,
-    IReadOnlyList<HistoryEntryDto> History);
+    IReadOnlyList<HistoryEntryDto> History,
+    string? PayerAddress = null,
+    string? PaymentTxHash = null,
+    string? RefundTxHash = null);
 
 public interface IRestaurantReadRepository
 {

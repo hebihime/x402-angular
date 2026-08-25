@@ -16,7 +16,10 @@ public sealed record OrderDto(
     DateTimeOffset ExpiresAt,
     int RefundAttempts,
     string? LastRefundError,
-    bool ManualInterventionRequired);
+    bool ManualInterventionRequired,
+    string? PayerAddress = null,
+    string? PaymentTxHash = null,
+    string? RefundTxHash = null);
 
 public static class OrderMapper
 {
@@ -31,7 +34,10 @@ public static class OrderMapper
         order.ExpiresAt,
         order.RefundAttempts,
         order.LastRefundError,
-        order.ManualInterventionRequired);
+        order.ManualInterventionRequired,
+        order.PayerAddress,
+        order.ChargeId,
+        order.RefundId);
 
     public static OrderLineDto ToDto(OrderLine line) => new(
         line.MenuItemId,
