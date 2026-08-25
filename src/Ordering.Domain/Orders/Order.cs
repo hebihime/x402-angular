@@ -146,10 +146,10 @@ public sealed class Order
         return result;
     }
 
-    /// <summary>Refund_pending → refunded after a successful gateway refund.</summary>
+    /// <summary>Refund_pending → refunded after a successful outbound transfer to the payer.</summary>
     public TransitionResult RecordRefundSuccess(string refundId, DateTimeOffset now)
     {
-        var result = TransitionTo(OrderStatus.Refunded, Actor.System, now, "gateway refund succeeded");
+        var result = TransitionTo(OrderStatus.Refunded, Actor.System, now, "outbound transfer to payer succeeded");
         if (result.Transitioned)
         {
             RefundId = refundId;

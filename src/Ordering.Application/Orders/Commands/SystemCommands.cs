@@ -75,7 +75,7 @@ internal sealed class TimeoutOrderAcceptanceCommandHandler(IOrderWriteRepository
 internal sealed class ProcessRefundCommandHandler(
     IOrderWriteRepository orders,
     IUnitOfWork unitOfWork,
-    IPaymentGateway paymentGateway,
+    IRefundRail refundRail,
     IOptions<OrderingOptions> options,
     TimeProvider clock) : IRequestHandler<ProcessRefundCommand, Result<OrderDto>>
 {
@@ -87,22 +87,24 @@ internal sealed class ProcessRefundCommandHandler(
             return Result<OrderDto>.Fail(ErrorKind.NotFound, "Order not found.");
         }
 
-        if (order.Status != OrderStatus.RefundPending || order.ChargeId is null)
+        // Destination is the recorded payer, not a card charge id. No payer
+        // means nothing to push to — leave the order untouched.
+        if (order.Status != OrderStatus.RefundPending || string.IsNullOrWhiteSpace(order.PayerAddress))
         {
             return Result<OrderDto>.Ok(OrderMapper.ToDto(order));
         }
 
         var now = clock.GetUtcNow();
-        var refund = await paymentGateway.RefundAsync(order.Id, order.ChargeId, order.Total, cancellationToken);
+        var refund = await refundRail.TransferAsync(order.PayerAddress, order.Total, cancellationToken);
         if (refund.Succeeded)
         {
-            order.RecordRefundSuccess(refund.TransactionId!, now);
+            order.RecordRefundSuccess(refund.TxHash!, now);
         }
         else
         {
             var settings = options.Value.Refund;
             var backoff = RefundPolicy.Backoff(order.RefundAttempts + 1, settings.BackoffBaseMs, settings.BackoffCapMs);
-            order.RecordRefundFailure(refund.Error ?? "gateway refund failed", now, settings.MaxAttempts, backoff);
+            order.RecordRefundFailure(refund.Error ?? "refund transfer failed", now, settings.MaxAttempts, backoff);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);

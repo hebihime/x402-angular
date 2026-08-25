@@ -32,8 +32,8 @@ public static class DependencyInjection
         services.AddScoped<ITransactionManager, EfTransactionManager>();
         services.AddSingleton<IUniqueViolationDetector, NpgsqlUniqueViolationDetector>();
 
-        services.AddSingleton<SimulatedPaymentGateway>();
-        services.AddSingleton<IPaymentGateway>(sp => sp.GetRequiredService<SimulatedPaymentGateway>());
+        services.AddSingleton<FakeRefundRail>();
+        services.AddSingleton<IRefundRail>(sp => sp.GetRequiredService<FakeRefundRail>());
 
         var useFakeFacilitator = configuration.GetValue("Ordering:X402:UseFake", true);
         if (useFakeFacilitator)

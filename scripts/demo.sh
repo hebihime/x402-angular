@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Scripted demo: place → confirm → reject → refund with 2 injected gateway
+# Scripted demo: place → confirm → reject → refund with 2 injected refund-rail
 # failures → recovered refund. Run the API (dotnet run --project
 # src/Ordering.Api) and the dashboard (cd frontend && npm start) first, open
 # http://localhost:4200, then run this and watch the board move live.
@@ -16,7 +16,7 @@ KEY="demo-key-$(date +%s)"
 say() { printf '\n\033[1m» %s\033[0m\n' "$1"; }
 field() { python3 -c "import json,sys;print(json.load(sys.stdin).get('$1'))"; }
 
-say "Injecting 2 refund failures into the simulated gateway"
+say "Injecting 2 refund failures into the fake refund rail"
 curl -sf -X POST "$API/api/demo/gateway/fail-refunds" -H 'Content-Type: application/json' -d '{"count":2}' >/dev/null
 
 say "Placing an order (server reprices: Margherita + Large + Extra cheese, x2)"
@@ -70,5 +70,5 @@ for h in json.load(sys.stdin):
     reason = f\" — {h['reason']}\" if h['reason'] else ''
     print(f\"  {h['from'] or '∅':>14} → {h['to']:<14} [{h['actor']}]{reason}\")"
 
-[ "$STATUS" = "refunded" ] && say "Demo complete: rejected order recovered to refunded after 2 gateway failures." \
+[ "$STATUS" = "refunded" ] && say "Demo complete: rejected order recovered to refunded after 2 refund-rail failures." \
   || { say "Demo did not reach refunded in time — check the API logs."; exit 1; }

@@ -43,9 +43,10 @@ public sealed class OrderingOptions
         public int BackoffCapMs { get; set; }
     }
 
-    /// <summary>Failure injection for the simulated gateway (demos and tests).</summary>
+    /// <summary>Failure injection for the fake refund rail (demos and tests).</summary>
     public sealed class GatewayOptions
     {
+        /// <summary>Unused leftover from the retired charge path. Kept so existing config still binds.</summary>
         [Range(0, int.MaxValue)]
         public int FailNextCharges { get; set; }
 

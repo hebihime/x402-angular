@@ -23,9 +23,9 @@ public static class DemoEndpoints
             return Results.Ok(new { injected = request.Count });
         });
 
-        app.MapPost("/api/demo/gateway/fail-refunds", (InjectFailuresRequest request, SimulatedPaymentGateway gateway) =>
+        app.MapPost("/api/demo/gateway/fail-refunds", (InjectFailuresRequest request, FakeRefundRail rail) =>
         {
-            gateway.InjectRefundFailures(request.Count);
+            rail.InjectFailures(request.Count);
             return Results.Ok(new { injected = request.Count });
         });
     }
